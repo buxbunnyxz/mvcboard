@@ -16,17 +16,31 @@ define('CORE', ROOT . '/core');
 require_once CORE . '/Lang.php';
 Lang::init('en');
 
-spl_autoload_register(function ($class) {
-    $paths = [CORE, APP . '/controllers', APP . '/models'];
-    foreach ($paths as $path) {
-        $file = "$path/$class.php";
-        if (file_exists($file)) {
-            require_once $file;
-            return;
-        }
-    }
-});
+// Manually parse URL and route it
+$url = isset($_GET['url']) ? trim($_GET['url'], '/') : '';
 
-require_once CORE . '/Router.php';
-$router = new Router();
-$router->dispatch($_GET['url'] ?? '');
+// Split URL into controller and method
+$parts = explode('/', $url);
+
+// Default controller
+$controllerName = !empty($parts[0]) ? ucfirst($parts[0]) . 'Controller' : 'HomeController';
+$method = $parts[1] ?? 'index';
+$params = array_slice($parts, 2);
+
+// Load controller file
+$controllerFile = APP . '/controllers/' . $controllerName . '.php';
+
+if (file_exists($controllerFile)) {
+    require_once $controllerFile;
+    $controller = new $controllerName();
+
+    // Check if method exists
+    if (method_exists($controller, $method)) {
+        call_user_func_array([$controller, $method], $params);
+        return;
+    }
+}
+
+// Fallback 404
+http_response_code(404);
+echo "404 - Page Not Found";
